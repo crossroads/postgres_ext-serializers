@@ -119,7 +119,7 @@ module PostgresExt::Serializers::ActiveModel
             unless @_ctes.find { |as| as.left == ids_table_name }
               @_ctes << _postgres_cte_as(ids_table_name, "(#{id_query.to_sql})")
             end
-            association_sql_tables << _process_has_many_relation(association.key, association.embed_key, association_reflection, relation_query, ids_table_arel)
+            association_sql_tables << _process_has_many_relation(association.key, association.embed_key, association_reflection, relation_query, ids_table_arel, association_class.options)
           elsif klass.column_names.include?(fkey) && !attributes.include?(fkey.to_sym)
             relation_query = relation_query.select(relation_query_arel[fkey].as(association.key.to_s))
           end
@@ -154,7 +154,7 @@ module PostgresExt::Serializers::ActiveModel
       end
     end
 
-    def _process_has_many_relation(key, embed_key, association_reflection, relation_query, ids_table_arel)
+    def _process_has_many_relation(key, embed_key, association_reflection, relation_query, ids_table_arel, relation_options = {})
       association_class = association_reflection.klass
       association_arel_table = association_class.arel_table
       association_query = _reflection_scope(association_reflection)
@@ -164,7 +164,7 @@ module PostgresExt::Serializers::ActiveModel
       cte_name = "#{id_column_name}_by_#{relation_query.table_name}"
       association_query = association_query.reorder(nil).select(_array_agg(association_arel_table[embed_key.to_sym], association_query.arel.orders, id_column_name))
       association_query = association_query.having(association_arel_table[association_reflection.foreign_key].in(ids_table_arel.project(ids_table_arel[:id])))
-      if options.with_indifferent_access[:polymorphic] == true && association_reflection.type.present?
+      if relation_options.with_indifferent_access[:polymorphic] == true && association_reflection.type.present?
         # Polymorphic
         association_query = association_query.where("#{association_reflection.name}.#{association_reflection.type} = '#{relation_query.klass.name}'")
       end
