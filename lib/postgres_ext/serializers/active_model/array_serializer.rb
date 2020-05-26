@@ -164,6 +164,10 @@ module PostgresExt::Serializers::ActiveModel
       cte_name = "#{id_column_name}_by_#{relation_query.table_name}"
       association_query = association_query.reorder(nil).select(_array_agg(association_arel_table[embed_key.to_sym], association_query.arel.orders, id_column_name))
       association_query = association_query.having(association_arel_table[association_reflection.foreign_key].in(ids_table_arel.project(ids_table_arel[:id])))
+      if options.with_indifferent_access[:polymorphic] == true && association_reflection.type.present?
+        # Polymorphic
+        association_query = association_query.where("#{association_reflection.name}.#{association_reflection.type} = '#{relation_query.klass.name}'")
+      end
       @_ctes << _postgres_cte_as(cte_name, "(#{association_query.to_sql})")
       { table: cte_name, ids_column: id_column_name, foreign_key: association_reflection.foreign_key }
     end
